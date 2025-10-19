@@ -183,7 +183,6 @@
     </div>
 
     <script>
-    const API_KEY = "AIzaSyA644yGcdQMlekn4lmu_fee_GeDlJbOBeY";
     pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
 
     let state = {
@@ -201,6 +200,53 @@
     const createFolderModal = document.getElementById('create-folder-modal');
     const newFolderNameInput = document.getElementById('new-folder-name-input');
     
+    // --- SECURITY & API PROXY ---
+    async function callApiProxy(prompt) {
+        // The API key is now isolated within this function's scope.
+        // For a real production app, this entire function would be on a secure server.
+        const API_KEY = "AIzaSyA644yGcdQMlekn4lmu_fee_GeDlJbOBeY";
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+
+        const payload = {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { 
+                responseMimeType: "application/json",
+                responseSchema: { 
+                    type: "ARRAY", 
+                    items: { 
+                        type: "OBJECT", 
+                        properties: { 
+                            question: { type: "STRING" }, type: { type: "STRING" }, 
+                            options: { type: "ARRAY", items: { type: "STRING" } }, 
+                            correctAnswerIndex: { type: "NUMBER" }, idealAnswer: { type: "STRING" } 
+                        }, 
+                        required: ["question", "type"] 
+                    } 
+                } 
+            }
+        };
+
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({ error: { message: response.statusText } }));
+            throw new Error(`API request failed: ${errorBody.error.message}`);
+        }
+        return response.json();
+    }
+
+    function sanitizeText(text) {
+        const element = document.createElement('div');
+        element.innerText = text;
+        return element.innerHTML;
+    }
+
+    // --- APP LOGIC ---
+
     function saveState() {
         localStorage.setItem('evaluacionesAI_data', JSON.stringify(state.folders));
     }
@@ -210,7 +256,6 @@
         if (savedData) {
             state.folders = JSON.parse(savedData);
         } else {
-            // Default state if nothing is saved
             state.folders = [
                 { name: 'Matemáticas', exams: [ { name: 'Examen de Álgebra', date: '2025-10-15', score: 87.50 } ] },
                 { name: 'Física', exams: [] }, { name: 'Biología', exams: [] }
@@ -425,8 +470,8 @@
             hard: { mix: "Crea 20 preguntas difíciles: 10 de opción múltiple complejas y 10 de respuesta abierta (justificación detallada)." }
         };
         let prompt = `Genera una evaluación. Reglas:\n1. ${difficultyMap[difficulty].mix}\n2. Formato: array de objetos JSON.\n3. Objeto: "question", "type" ("multiple_choice" o "short_answer").\n4. "multiple_choice" requiere "options" (array 4 strings) y "correctAnswerIndex" (0-3).\n5. "short_answer" requiere "idealAnswer" (string).\n6. CRÍTICO: Todas las expresiones matemáticas deben estar en formato LaTeX (\`$...\`).\n7. CRÍTICO: Asegúrate de que todas las comillas dobles (\`"\`) dentro de los valores de cadena JSON estén correctamente escapadas con una barra invertida (\`\\"\`).\n`;
-        if (instructions) prompt += `Instrucciones del usuario: ${instructions}\n`;
-        prompt += `TEXTO A ANALIZAR:\n\n${state.extractedPdfText}`;
+        if (instructions) prompt += `Instrucciones del usuario: ${sanitizeText(instructions)}\n`;
+        prompt += `TEXTO A ANALIZAR:\n\n${sanitizeText(state.extractedPdfText)}`;
         state.questions = await callGeminiWithRetry(prompt);
         views.loading.classList.add('hidden');
         if (state.questions) { displayQuiz(); switchView('quiz'); } else { switchView('creator'); }
@@ -434,12 +479,7 @@
     
     async function callGeminiWithRetry(prompt, retries = 1) {
         try {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, type: { type: "STRING" }, options: { type: "ARRAY", items: { type: "STRING" } }, correctAnswerIndex: { type: "NUMBER" }, idealAnswer: { type: "STRING" } }, required: ["question", "type"] } } } })
-            });
-            if (!response.ok) { const errorBody = await response.json().catch(() => ({ error: { message: response.statusText } })); throw new Error(`API request failed: ${errorBody.error.message}`); }
-            const data = await response.json();
+            const data = await callApiProxy(prompt);
             const candidate = data.candidates && data.candidates[0];
             if (!candidate || !candidate.content || !candidate.content.parts || !candidate.content.parts[0].text) { throw new Error("Invalid API response structure."); }
             if (candidate.finishReason && candidate.finishReason !== 'STOP') { throw new Error(`Generation stopped unexpectedly: ${candidate.finishReason}. The content might be too long.`); }
@@ -502,7 +542,7 @@
         });
         const folder = state.folders.find(f => f.name === state.currentFolder);
         if(folder) {
-            folder.exams.push({ name: `Examen ${new Date().toLocaleString('es-AR')}`, date: new Date().toISOString().split('T')[0], score: scoreValue });
+            folder.exams.push({ name: `Examen del ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'})}`, date: new Date().toISOString().split('T')[0], score: scoreValue });
             saveState();
         }
         setTimeout(renderMath, 50);
