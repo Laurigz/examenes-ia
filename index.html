@@ -188,10 +188,7 @@
 
     let state = {
         currentView: 'dashboard', previousView: 'dashboard', currentFolder: 'Matemáticas',
-        folders: [
-            { name: 'Matemáticas', exams: [ { name: 'Álgebra', date: '2025-10-15', score: 87.50 } ] },
-            { name: 'Física', exams: [] }, { name: 'Biología', exams: [] }
-        ],
+        folders: [],
         questions: [], userAnswers: {}, currentFile: null, extractedPdfText: ""
     };
     
@@ -204,6 +201,23 @@
     const createFolderModal = document.getElementById('create-folder-modal');
     const newFolderNameInput = document.getElementById('new-folder-name-input');
     
+    function saveState() {
+        localStorage.setItem('evaluacionesAI_data', JSON.stringify(state.folders));
+    }
+
+    function loadState() {
+        const savedData = localStorage.getItem('evaluacionesAI_data');
+        if (savedData) {
+            state.folders = JSON.parse(savedData);
+        } else {
+            // Default state if nothing is saved
+            state.folders = [
+                { name: 'Matemáticas', exams: [ { name: 'Examen de Álgebra', date: '2025-10-15', score: 87.50 } ] },
+                { name: 'Física', exams: [] }, { name: 'Biología', exams: [] }
+            ];
+        }
+    }
+
     function renderMath() {
         if (window.MathJax && window.MathJax.typesetPromise) {
             window.MathJax.typesetPromise();
@@ -257,6 +271,7 @@
     document.getElementById('confirm-delete-btn').onclick = () => {
         const folderName = confirmModal.dataset.folderToDelete;
         state.folders = state.folders.filter(f => f.name !== folderName);
+        saveState();
         confirmModal.classList.add('hidden');
         renderDashboard();
     };
@@ -266,6 +281,7 @@
         const newName = newFolderNameInput.value.trim();
         if (newName && !state.folders.find(f => f.name.toLowerCase() === newName.toLowerCase())) {
             state.folders.push({ name: newName, exams: [] });
+            saveState();
             createFolderModal.classList.add('hidden');
             renderDashboard();
         } else if (!newName) {
@@ -485,7 +501,10 @@
             resEl.innerHTML = inner; resultsContainer.appendChild(resEl);
         });
         const folder = state.folders.find(f => f.name === state.currentFolder);
-        if(folder) folder.exams.push({ name: `Examen ${new Date().toLocaleDateString()}`, date: new Date().toISOString().split('T')[0], score: scoreValue });
+        if(folder) {
+            folder.exams.push({ name: `Examen ${new Date().toLocaleString('es-AR')}`, date: new Date().toISOString().split('T')[0], score: scoreValue });
+            saveState();
+        }
         setTimeout(renderMath, 50);
     }
     
@@ -495,7 +514,10 @@
     document.getElementById('back-to-view-btn').onclick = () => { renderFolderView(); switchView(state.previousView); };
     document.getElementById('finish-btn').onclick = () => { renderFolderView(); switchView('folder'); };
     
-    renderDashboard(); switchView('dashboard');
+    // --- INITIALIZATION ---
+    loadState();
+    renderDashboard();
+    switchView('dashboard');
     </script>
 </body>
 </html>
