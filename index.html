@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluaciones con Inteligencia Artificial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
+    <!-- MathJax Configuration -->
+    <script>
+        window.MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']]
+          },
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .main-card {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.05), 0 8px 10px -6px rgb(0 0 0 / 0.05);
+            transition: all 0.3s ease-in-out;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .folder-item, .add-folder-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            position: relative;
+        }
+        .folder-item:hover, .add-folder-item:hover {
+            border-color: #3b82f6;
+            background-color: #f9fafb;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+        }
+        .tab { border-bottom: 2px solid transparent; }
+        .tab.active { border-bottom-color: #1f2937; font-weight: 600; }
+        .registro-grid { display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; }
+        .registro-cell { width: 100%; padding-bottom: 100%; border-radius: 2px; background-color: #ebedf0; }
+        .btn-create {
+             border: 1px solid #e5e7eb;
+             border-radius: 0.5rem;
+             background-color: #fff;
+             transition: all 0.2s ease-in-out;
+        }
+        .btn-create:hover { border-color: #d1d5db; background-color: #f9fafb; }
+        .difficulty-selector label {
+            border: 1px solid #d1d5db; background-color: #f9fafb; padding: 8px 16px; cursor: pointer; transition: all 0.2s;
+        }
+        .difficulty-selector input:checked + label { background-color: #3b82f6; color: white; border-color: #3b82f6; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="app-container" class="main-card w-full max-w-4xl">
+        <div class="p-8 md:p-12 overflow-y-auto">
+
+            <!-- VISTAS PRINCIPALES (DASHBOARD, FOLDER, CREATOR, etc.) -->
+            <div id="dashboard-view">
+                 <h1 class="text-4xl font-bold text-gray-900 mb-8">Evaluaciones con Inteligencia Artificial</h1>
+                <div id="folder-list-container" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"></div>
+                <button id="dashboard-create-exam-btn" class="w-full md:w-auto btn-create px-6 py-3 font-semibold text-gray-800 flex items-center justify-center gap-2">
+                    <i class="fas fa-plus-circle"></i> Crear examen
+                </button>
+            </div>
+            <div id="folder-view" class="hidden">
+                 <button id="back-to-dashboard-btn" class="mb-4 text-sm text-gray-500 hover:text-gray-900"><i class="fas fa-arrow-left mr-2"></i>Volver a Carpetas</button>
+                <h1 class="text-4xl font-bold text-gray-900 mb-6">Evaluaciones</h1>
+                <div id="folder-tabs" class="flex items-center gap-6 border-b border-gray-200 mb-8"></div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="md:col-span-2">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Historial</h2>
+                        <table class="w-full text-left">
+                            <thead><tr class="border-b border-gray-200 text-sm text-gray-500"><th class="py-2">Nombre</th><th class="py-2">Fecha</th><th class="py-2">Calificación</th></tr></thead>
+                            <tbody id="exam-list-body"></tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Registro</h2>
+                        <div id="registro-grid" class="registro-grid"></div>
+                    </div>
+                </div>
+                <button id="folder-create-exam-btn" class="mt-8 w-full md:w-auto btn-create px-6 py-3 font-semibold text-gray-800 flex items-center justify-center gap-2">
+                    <i class="fas fa-plus-circle"></i> Crear examen
+                </button>
+            </div>
+             <div id="creator-view" class="hidden">
+                 <button id="back-to-view-btn" class="mb-4 text-sm text-gray-500 hover:text-gray-900"><i class="fas fa-arrow-left mr-2"></i>Volver</button>
+                 <h1 class="text-3xl font-bold text-gray-800 mb-2">Crear Nueva Evaluación</h1>
+                 <p class="text-gray-600 mb-6">Sube un PDF, elige la dificultad y deja que Gemini cree un examen a medida.</p>
+                 <div id="drop-zone" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer mb-4 hover:border-blue-500 hover:bg-gray-50">
+                    <i class="fas fa-file-pdf text-4xl text-gray-400 mb-3"></i><p class="text-gray-700 font-semibold">Arrastra y suelta tu PDF aquí</p>
+                    <button id="browse-btn" class="mt-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Seleccionar Archivo</button>
+                    <input type="file" id="file-input" class="hidden" accept=".pdf"><p id="file-name" class="mt-3 text-sm text-gray-600 font-medium"></p>
+                </div>
+                <div id="page-options" class="hidden my-4 p-4 border border-gray-200 rounded-lg">
+                    <h3 class="font-semibold text-gray-800 mb-3">Opciones de Página</h3>
+                    <div class="flex items-center space-x-6">
+                        <label class="flex items-center"><input type="radio" name="page-selection" value="all" class="mr-2" checked>Todas</label>
+                        <label class="flex items-center"><input type="radio" name="page-selection" value="specific" class="mr-2">Específicas</label>
+                        <label class="flex items-center"><input type="radio" name="page-selection" value="random" class="mr-2">Aleatorias</label>
+                    </div>
+                    <div id="specific-pages-input-container" class="mt-3 hidden"><input type="text" id="specific-pages" placeholder="Ej: 5-10, 15" class="w-full p-2 border border-gray-300 rounded-lg"></div>
+                    <div id="random-pages-input-container" class="mt-3 hidden"><input type="number" id="random-pages" placeholder="¿Cuántas páginas?" class="w-full p-2 border border-gray-300 rounded-lg"></div>
+                </div>
+                <div id="difficulty-options" class="hidden my-4 p-4 border border-gray-200 rounded-lg">
+                    <h3 class="font-semibold text-gray-800 mb-3">Nivel de Dificultad</h3>
+                    <div class="flex justify-center difficulty-selector rounded-lg overflow-hidden"><input type="radio" id="diff-easy" name="difficulty" value="easy" class="hidden" checked><label for="diff-easy" class="rounded-l-lg">Fácil</label><input type="radio" id="diff-medium" name="difficulty" value="medium" class="hidden"><label for="diff-medium">Medio</label><input type="radio" id="diff-hard" name="difficulty" value="hard" class="hidden"><label for="diff-hard" class="rounded-r-lg">Difícil</label></div>
+                </div>
+                 <p id="pdf-status" class="my-4 text-sm text-center font-semibold hidden"></p>
+                <div id="ai-instructions-container" class="mb-6 hidden">
+                    <label for="ai-instructions" class="block text-sm font-medium text-gray-700 mb-1">Instrucciones para la IA (opcional)</label>
+                    <textarea id="ai-instructions" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Ej: 'Enfócate en el capítulo 3'"></textarea>
+                </div>
+                <button id="generate-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg text-lg hover:bg-blue-700 disabled:opacity-50" disabled><i class="fas fa-bolt mr-2"></i> Generar Evaluación</button>
+                <p id="error-message" class="text-red-500 text-center mt-4 font-medium hidden"></p>
+            </div>
+            <div id="quiz-view" class="hidden">
+                 <h1 id="quiz-title" class="text-3xl font-bold text-gray-900 mb-8 text-center">Evaluación</h1>
+                 <div id="quiz-container" class="space-y-6"></div>
+                 <button id="submit-btn" class="mt-8 w-full bg-blue-600 text-white font-bold py-3 rounded-lg text-lg hover:bg-blue-700">Finalizar y Corregir</button>
+            </div>
+            <div id="results-view" class="hidden">
+                 <h1 class="text-3xl font-bold text-gray-900 mb-4 text-center">Resultados</h1>
+                <div class="bg-white p-8 rounded-2xl shadow-inner border border-gray-100 mb-8 text-center">
+                    <p class="text-lg text-gray-600">Puntaje (Opción Múltiple):</p>
+                    <p id="score" class="text-7xl font-bold my-4"></p>
+                    <div class="w-full bg-gray-200 rounded-full h-4"><div id="score-bar" class="h-4 rounded-full"></div></div>
+                </div>
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Revisión de Preguntas</h2>
+                <div id="results-container" class="space-y-4"></div>
+                <button id="finish-btn" class="mt-8 w-full bg-gray-800 text-white font-bold py-3 rounded-lg hover:bg-gray-900">Finalizar y volver a la carpeta</button>
+            </div>
+        </div>
+        
+        <div id="loading-view" class="hidden absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center rounded-2xl">
+             <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+             <p class="mt-4 text-lg font-semibold text-gray-700">Generando examen...</p>
+        </div>
+    </div>
+    
+    <div id="confirm-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl p-8 max-w-md w-full text-center">
+            <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mt-4">Eliminar Carpeta</h2>
+            <p id="modal-message" class="text-gray-600 mt-2 mb-6">¿Seguro que quieres eliminar esta carpeta y todos sus exámenes? Esta acción no se puede deshacer.</p>
+            <div class="flex justify-center gap-4">
+                <button id="cancel-delete-btn" class="px-6 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 font-semibold">Cancelar</button>
+                <button id="confirm-delete-btn" class="px-6 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-semibold">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="create-folder-modal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl p-8 max-w-md w-full">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Nueva Carpeta</h2>
+            <p class="text-gray-600 mb-6">Ingresa el nombre de la nueva materia.</p>
+            <input type="text" id="new-folder-name-input" class="w-full p-3 border border-gray-300 rounded-lg mb-6" placeholder="Ej: Química">
+            <div class="flex justify-end gap-4">
+                <button id="cancel-create-folder-btn" class="px-6 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 font-semibold">Cancelar</button>
+                <button id="confirm-create-folder-btn" class="px-6 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold">Crear</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API_KEY = "AIzaSyA644yGcdQMlekn4lmu_fee_GeDlJbOBeY";
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js`;
+
+    let state = {
+        currentView: 'dashboard', previousView: 'dashboard', currentFolder: 'Matemáticas',
+        folders: [
+            { name: 'Matemáticas', exams: [ { name: 'Álgebra', date: '2025-10-15', score: 87.50 } ] },
+            { name: 'Física', exams: [] }, { name: 'Biología', exams: [] }
+        ],
+        questions: [], userAnswers: {}, currentFile: null, extractedPdfText: ""
+    };
+    
+    const views = {
+        dashboard: document.getElementById('dashboard-view'), folder: document.getElementById('folder-view'),
+        creator: document.getElementById('creator-view'), quiz: document.getElementById('quiz-view'),
+        results: document.getElementById('results-view'), loading: document.getElementById('loading-view')
+    };
+    const confirmModal = document.getElementById('confirm-modal');
+    const createFolderModal = document.getElementById('create-folder-modal');
+    const newFolderNameInput = document.getElementById('new-folder-name-input');
+    
+    function renderMath() {
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            window.MathJax.typesetPromise();
+        }
+    }
+
+    function switchView(viewName, isPopup = false) {
+        if (!isPopup) { state.previousView = state.currentView; }
+        state.currentView = viewName;
+        if (isPopup) { views[viewName].classList.remove('hidden');
+        } else {
+            Object.values(views).forEach(v => v.id.includes('loading') ? null : v.classList.add('hidden'));
+            views[viewName].classList.remove('hidden');
+        }
+    }
+
+    function renderDashboard() {
+        const folderListContainer = document.getElementById('folder-list-container');
+        folderListContainer.innerHTML = '';
+        state.folders.forEach(folder => {
+            const folderEl = document.createElement('div');
+            folderEl.className = 'folder-item p-4 text-center cursor-pointer group';
+            folderEl.innerHTML = `<div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"><button data-folder="${folder.name}" class="delete-folder-btn p-1 text-gray-400 hover:text-red-500"><i class="fas fa-trash-alt"></i></button></div><i class="far fa-folder text-4xl mb-2 text-gray-700"></i><p class="font-semibold text-gray-800">${folder.name}</p>`;
+            folderEl.onclick = (e) => {
+                if (e.target.closest('.delete-folder-btn')) return;
+                state.currentFolder = folder.name; renderFolderView(); switchView('folder');
+            };
+            folderListContainer.appendChild(folderEl);
+        });
+        const addFolderEl = document.createElement('div');
+        addFolderEl.className = 'add-folder-item p-4 text-center cursor-pointer flex flex-col items-center justify-center';
+        addFolderEl.innerHTML = `<i class="fas fa-plus-circle text-4xl mb-2 text-gray-400"></i><p class="font-semibold text-gray-500">Nueva</p>`;
+        addFolderEl.onclick = () => {
+            newFolderNameInput.value = '';
+            createFolderModal.classList.remove('hidden');
+            newFolderNameInput.focus();
+        };
+        folderListContainer.appendChild(addFolderEl);
+    }
+    
+    document.addEventListener('click', e => {
+        if (e.target.closest('.delete-folder-btn')) {
+            const folderName = e.target.closest('.delete-folder-btn').dataset.folder;
+            document.getElementById('modal-message').textContent = `¿Seguro que quieres eliminar la carpeta "${folderName}" y todos sus exámenes? Esta acción no se puede deshacer.`;
+            confirmModal.dataset.folderToDelete = folderName;
+            confirmModal.classList.remove('hidden');
+        }
+    });
+    
+    document.getElementById('cancel-delete-btn').onclick = () => confirmModal.classList.add('hidden');
+    document.getElementById('confirm-delete-btn').onclick = () => {
+        const folderName = confirmModal.dataset.folderToDelete;
+        state.folders = state.folders.filter(f => f.name !== folderName);
+        confirmModal.classList.add('hidden');
+        renderDashboard();
+    };
+    
+    document.getElementById('cancel-create-folder-btn').onclick = () => createFolderModal.classList.add('hidden');
+    document.getElementById('confirm-create-folder-btn').onclick = () => {
+        const newName = newFolderNameInput.value.trim();
+        if (newName && !state.folders.find(f => f.name.toLowerCase() === newName.toLowerCase())) {
+            state.folders.push({ name: newName, exams: [] });
+            createFolderModal.classList.add('hidden');
+            renderDashboard();
+        } else if (!newName) {
+            alert('El nombre de la carpeta no puede estar vacío.');
+        } else {
+            alert('Ya existe una carpeta con ese nombre.');
+        }
+    };
+
+
+    function renderFolderView() {
+        const folderTabsContainer = document.getElementById('folder-tabs');
+        folderTabsContainer.innerHTML = '';
+        state.folders.forEach(folder => {
+            const tabEl = document.createElement('button');
+            tabEl.className = `tab py-2 text-lg ${folder.name === state.currentFolder ? 'active text-gray-900' : 'text-gray-500'}`;
+            tabEl.textContent = folder.name;
+            tabEl.onclick = () => { state.currentFolder = folder.name; renderFolderView(); };
+            folderTabsContainer.appendChild(tabEl);
+        });
+        const examListBody = document.getElementById('exam-list-body');
+        examListBody.innerHTML = '';
+        const currentFolderData = state.folders.find(f => f.name === state.currentFolder);
+        if (currentFolderData && currentFolderData.exams.length > 0) {
+            currentFolderData.exams.forEach(exam => {
+                const row = document.createElement('tr'); row.className = 'border-b border-gray-100';
+                row.innerHTML = `<td class="py-3 font-medium text-gray-800">${exam.name}</td><td class="py-3 text-gray-600">${exam.date}</td><td class="py-3 font-semibold ${exam.score >= 80 ? 'text-green-600' : 'text-orange-500'}">${exam.score.toFixed(2).replace('.', ',')}</td>`;
+                examListBody.appendChild(row);
+            });
+        } else { examListBody.innerHTML = '<tr><td colspan="3" class="py-3 text-gray-500">No hay exámenes en esta materia.</td></tr>'; }
+        
+        renderRegistroGraph(currentFolderData ? currentFolderData.exams : []);
+    }
+
+    function renderRegistroGraph(exams) {
+        const registroGrid = document.getElementById('registro-grid');
+        registroGrid.innerHTML = '';
+        const examDates = new Set(exams.map(e => e.date));
+        const today = new Date();
+        const daysToShow = 16 * 7;
+        let startDate = new Date(today);
+        startDate.setDate(today.getDate() - daysToShow + 1);
+
+        for (let i = 0; i < daysToShow; i++) {
+            let currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + i);
+            const dateString = currentDate.toISOString().split('T')[0];
+            const cell = document.createElement('div');
+            cell.className = 'registro-cell';
+            if (examDates.has(dateString)) {
+                 cell.style.backgroundColor = '#30a14e';
+            }
+            registroGrid.appendChild(cell);
+        }
+    }
+    
+    const creatorElements = {
+        dropZone: document.getElementById('drop-zone'), fileInput: document.getElementById('file-input'), browseBtn: document.getElementById('browse-btn'),
+        fileName: document.getElementById('file-name'), pdfStatus: document.getElementById('pdf-status'), pageOpts: document.getElementById('page-options'),
+        diffOpts: document.getElementById('difficulty-options'), aiInstructions: document.getElementById('ai-instructions-container'),
+        generateBtn: document.getElementById('generate-btn'), errorMsg: document.getElementById('error-message'),
+        specificPagesContainer: document.getElementById('specific-pages-input-container'),
+        randomPagesContainer: document.getElementById('random-pages-input-container')
+    };
+
+    creatorElements.browseBtn.onclick = () => creatorElements.fileInput.click();
+    creatorElements.fileInput.onchange = (e) => handleFile(e.target.files[0]);
+    ['dragover', 'dragleave', 'drop'].forEach(ev => creatorElements.dropZone.addEventListener(ev, e => e.preventDefault()));
+    creatorElements.dropZone.ondragover = () => creatorElements.dropZone.classList.add('border-blue-500');
+    creatorElements.dropZone.ondragleave = () => creatorElements.dropZone.classList.remove('border-blue-500');
+    creatorElements.dropZone.ondrop = e => { creatorElements.dropZone.classList.remove('border-blue-500'); handleFile(e.dataTransfer.files[0]); };
+
+    function handleFile(file) {
+        if (!file || file.type !== 'application/pdf') { creatorElements.fileName.textContent = 'Por favor, selecciona un archivo PDF.'; return; }
+        state.currentFile = file;
+        creatorElements.fileName.textContent = `Archivo: ${file.name}`;
+        [creatorElements.pageOpts, creatorElements.diffOpts, creatorElements.aiInstructions].forEach(el => el.classList.remove('hidden'));
+        processAndExtractText(file);
+    }
+    
+    async function processAndExtractText(file) {
+        creatorElements.pdfStatus.textContent = 'Procesando PDF...'; creatorElements.pdfStatus.classList.remove('hidden');
+        creatorElements.generateBtn.disabled = true;
+        try {
+            const typedarray = new Uint8Array(await file.arrayBuffer());
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            const pagesToExtract = getSelectedPages(pdf.numPages);
+            if (pagesToExtract.length === 0) { creatorElements.pdfStatus.textContent = 'Especifica páginas válidas.'; state.extractedPdfText = ''; creatorElements.generateBtn.disabled = true; return; }
+            creatorElements.pdfStatus.textContent = `Extrayendo texto de ${pagesToExtract.length} página(s)...`;
+            let fullText = '';
+            for (const pageNum of pagesToExtract) {
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                fullText += textContent.items.map(item => item.str).join(' ') + '\n\n';
+            }
+            state.extractedPdfText = fullText;
+            creatorElements.pdfStatus.textContent = `¡Listo! Texto extraído de ${pagesToExtract.length} de ${pdf.numPages} páginas.`;
+            creatorElements.generateBtn.disabled = false;
+        } catch (error) { creatorElements.pdfStatus.textContent = 'Error al procesar el PDF.'; console.error("PDF Error:", error); }
+    }
+    
+    function getSelectedPages(maxPages) {
+        const mode = document.querySelector('input[name="page-selection"]:checked').value;
+        if (mode === 'all') return Array.from({ length: maxPages }, (_, i) => i + 1);
+        if (mode === 'specific') {
+            const input = document.getElementById('specific-pages').value; const pages = new Set();
+            input.split(',').forEach(part => {
+                if (part.includes('-')) { const [start, end] = part.split('-').map(Number); for (let i = start; i <= end; i++) if (i > 0 && i <= maxPages) pages.add(i);
+                } else { const page = Number(part); if (page > 0 && page <= maxPages) pages.add(page); }
+            }); return Array.from(pages);
+        }
+        if (mode === 'random') {
+            const count = parseInt(document.getElementById('random-pages').value, 10) || 0;
+            if (count > 0) {
+                const allPages = Array.from({ length: maxPages }, (_, i) => i + 1);
+                for (let i = allPages.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [allPages[i], allPages[j]] = [allPages[j], allPages[i]]; }
+                return allPages.slice(0, count);
+            }
+        } return [];
+    }
+    
+    document.querySelectorAll('input[name="page-selection"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            creatorElements.specificPagesContainer.classList.toggle('hidden', e.target.value !== 'specific');
+            creatorElements.randomPagesContainer.classList.toggle('hidden', e.target.value !== 'random');
+             if (state.currentFile) processAndExtractText(state.currentFile);
+        });
+    });
+    
+    document.querySelectorAll('#specific-pages, #random-pages').forEach(el => el.oninput = () => state.currentFile && processAndExtractText(state.currentFile));
+
+    creatorElements.generateBtn.onclick = async () => {
+        if (!state.extractedPdfText) { return; }
+        switchView('loading', true);
+        creatorElements.errorMsg.classList.add('hidden');
+        const difficulty = document.querySelector('input[name="difficulty"]:checked').value;
+        const instructions = document.getElementById('ai-instructions').value.trim();
+        const difficultyMap = {
+            easy: { mix: "Crea 5 preguntas fáciles de opción múltiple." },
+            medium: { mix: "Crea 10 preguntas de dificultad media: 7 de opción múltiple y 3 de respuesta corta (justificación)." },
+            hard: { mix: "Crea 20 preguntas difíciles: 10 de opción múltiple complejas y 10 de respuesta abierta (justificación detallada)." }
+        };
+        let prompt = `Genera una evaluación. Reglas:\n1. ${difficultyMap[difficulty].mix}\n2. Formato: array de objetos JSON.\n3. Objeto: "question", "type" ("multiple_choice" o "short_answer").\n4. "multiple_choice" requiere "options" (array 4 strings) y "correctAnswerIndex" (0-3).\n5. "short_answer" requiere "idealAnswer" (string).\n6. CRÍTICO: Todas las expresiones matemáticas deben estar en formato LaTeX (\`$...\`).\n7. CRÍTICO: Asegúrate de que todas las comillas dobles (\`"\`) dentro de los valores de cadena JSON estén correctamente escapadas con una barra invertida (\`\\"\`).\n`;
+        if (instructions) prompt += `Instrucciones del usuario: ${instructions}\n`;
+        prompt += `TEXTO A ANALIZAR:\n\n${state.extractedPdfText}`;
+        state.questions = await callGeminiWithRetry(prompt);
+        views.loading.classList.add('hidden');
+        if (state.questions) { displayQuiz(); switchView('quiz'); } else { switchView('creator'); }
+    };
+    
+    async function callGeminiWithRetry(prompt, retries = 1) {
+        try {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "ARRAY", items: { type: "OBJECT", properties: { question: { type: "STRING" }, type: { type: "STRING" }, options: { type: "ARRAY", items: { type: "STRING" } }, correctAnswerIndex: { type: "NUMBER" }, idealAnswer: { type: "STRING" } }, required: ["question", "type"] } } } })
+            });
+            if (!response.ok) { const errorBody = await response.json().catch(() => ({ error: { message: response.statusText } })); throw new Error(`API request failed: ${errorBody.error.message}`); }
+            const data = await response.json();
+            const candidate = data.candidates && data.candidates[0];
+            if (!candidate || !candidate.content || !candidate.content.parts || !candidate.content.parts[0].text) { throw new Error("Invalid API response structure."); }
+            if (candidate.finishReason && candidate.finishReason !== 'STOP') { throw new Error(`Generation stopped unexpectedly: ${candidate.finishReason}. The content might be too long.`); }
+            return JSON.parse(candidate.content.parts[0].text);
+        } catch (error) {
+            console.error("Attempt failed:", error);
+            if (retries > 0) {
+                console.log(`Retrying... attempts left: ${retries}`);
+                const retryPrompt = "Tu respuesta anterior tuvo un error de formato JSON. Por favor, revisa cuidadosamente tu respuesta para asegurar que sea un JSON válido, escapando todas las comillas dobles correctamente y cerrando todos los objetos y arrays. La solicitud original era:\n\n" + prompt;
+                return await callGeminiWithRetry(retryPrompt, retries - 1);
+            } else {
+                creatorElements.errorMsg.textContent = `Error final de la API: ${error.message}. Por favor, intenta con un PDF más corto o menos páginas.`;
+                creatorElements.errorMsg.classList.remove('hidden');
+                return null;
+            }
+        }
+    }
+    
+    function displayQuiz() {
+        const quizContainer = document.getElementById('quiz-container');
+        quizContainer.innerHTML = '';
+        document.getElementById('quiz-title').textContent = `Evaluación (${document.querySelector('input[name=difficulty]:checked').value})`;
+        state.questions.forEach((q, index) => {
+            const qEl = document.createElement('div'); qEl.className = 'p-6 rounded-xl shadow-inner border border-gray-100';
+            let content = `<p class="text-lg font-semibold text-gray-800 mb-4">${index + 1}. ${q.question}</p>`;
+            if (q.type === 'multiple_choice') {
+                content += `<div class="space-y-2">${q.options.map((opt, i) => `<div><label class="flex items-center p-3 rounded-lg hover:bg-gray-50 cursor-pointer"><input type="radio" name="q-${index}" value="${i}" class="mr-3 h-5 w-5 border-gray-300 text-blue-600 focus:ring-blue-500"><span class="text-gray-700">${opt}</span></label></div>`).join('')}</div>`;
+            } else { content += `<textarea id="q-${index}" rows="4" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Escribe tu justificación..."></textarea>`; }
+            qEl.innerHTML = content; quizContainer.appendChild(qEl);
+        });
+        setTimeout(renderMath, 50);
+    }
+    
+    document.getElementById('submit-btn').onclick = () => {
+        state.questions.forEach((q, index) => {
+            const el = document.querySelector(`input[name="q-${index}"]:checked`) || document.getElementById(`q-${index}`);
+            state.userAnswers[index] = q.type === 'multiple_choice' ? (el ? parseInt(el.value) : null) : (el ? el.value : '');
+        });
+        displayResults(); switchView('results');
+    };
+    
+    function displayResults() {
+        const mcqs = state.questions.filter(q => q.type === 'multiple_choice');
+        const correctMcqs = mcqs.filter((q) => state.userAnswers[state.questions.indexOf(q)] === q.correctAnswerIndex).length;
+        const scoreValue = mcqs.length > 0 ? parseFloat((correctMcqs / mcqs.length * 100).toFixed(2)) : 100.00;
+        const scoreEl = document.getElementById('score'); scoreEl.textContent = mcqs.length > 0 ? scoreValue.toFixed(2).replace('.',',') : 'N/A';
+        const scoreColor = scoreValue < 50 ? '#ef4444' : (scoreValue < 80 ? '#f59e0b' : '#22c55e');
+        scoreEl.style.color = scoreColor;
+        document.getElementById('score-bar').style.width = `${scoreValue}%`; document.getElementById('score-bar').style.backgroundColor = scoreColor;
+        const resultsContainer = document.getElementById('results-container'); resultsContainer.innerHTML = '';
+        state.questions.forEach((q, index) => {
+            const resEl = document.createElement('div');
+            let inner = `<p class="font-semibold text-gray-800 mb-2">${index + 1}. ${q.question}</p>`;
+            if (q.type === 'multiple_choice') {
+                const isCorrect = state.userAnswers[index] === q.correctAnswerIndex;
+                resEl.className = `p-5 rounded-xl border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`;
+                inner += isCorrect ? `<p class="text-green-700"><i class="fas fa-check-circle mr-2"></i>Tu respuesta: <strong>${q.options[state.userAnswers[index]]}</strong></p>` : `<p class="text-red-700"><i class="fas fa-times-circle mr-2"></i>Tu respuesta: <strong>${state.userAnswers[index] !== null ? q.options[state.userAnswers[index]] : 'No respondida'}</strong></p><p class="text-green-700">Correcta: <strong>${q.options[q.correctAnswerIndex]}</strong></p>`;
+            } else { resEl.className = 'p-5 rounded-xl border-2 border-sky-200 bg-sky-50'; inner += `<div class="space-y-3"><div class="p-3 bg-gray-100 rounded-lg"><p class="font-semibold text-gray-700">Tu Respuesta:</p><p>${state.userAnswers[index] || 'No respondida'}</p></div><div class="p-3 bg-sky-100/70 rounded-lg"><p class="font-semibold text-sky-700">Respuesta Ideal:</p><p>${q.idealAnswer}</p></div></div>`; }
+            resEl.innerHTML = inner; resultsContainer.appendChild(resEl);
+        });
+        const folder = state.folders.find(f => f.name === state.currentFolder);
+        if(folder) folder.exams.push({ name: `Examen ${new Date().toLocaleDateString()}`, date: new Date().toISOString().split('T')[0], score: scoreValue });
+        setTimeout(renderMath, 50);
+    }
+    
+    document.getElementById('dashboard-create-exam-btn').onclick = () => switchView('creator');
+    document.getElementById('folder-create-exam-btn').onclick = () => switchView('creator');
+    document.getElementById('back-to-dashboard-btn').onclick = () => { renderDashboard(); switchView('dashboard'); };
+    document.getElementById('back-to-view-btn').onclick = () => { renderFolderView(); switchView(state.previousView); };
+    document.getElementById('finish-btn').onclick = () => { renderFolderView(); switchView('folder'); };
+    
+    renderDashboard(); switchView('dashboard');
+    </script>
+</body>
+</html>
+
